@@ -1,3 +1,3 @@
 # public
 
-here will be files for courses etc.
+here will be files for courses, assignments etc.
