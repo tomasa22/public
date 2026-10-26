@@ -379,7 +379,7 @@ html,body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:
   </div>
   <div class="card" style="margin-bottom: var(--cds-gap-md)">
     <div class="maphead"><h3>The House battleground</h3></div>
-    <div class="explain"><span class="ex-h">How to read this</span> Each tile is one House district that Cook Political Report rates as competitive — the seats most likely to decide which party controls the House. Tiles on the left lean Democratic, the middle ones are toss-ups, those on the right lean Republican. A small corner mark shows which party holds a toss-up seat now. Hover a tile to see its state light up on the map, or hover a state to pick out its districts.</div>
+    <div class="explain"><span class="ex-h">How to read this</span> Each tile is one House district that Cook Political Report rates as competitive — the seats most likely to decide which party controls the House. Tiles on the left lean Democratic, the middle ones are toss-ups, those on the right lean Republican. A small corner mark shows which party holds a toss-up seat now. Each small square on the map is one of these districts, in the same colour as its tile. Hover a tile or a square and both light up together with the state.</div>
     <div class="map hgeo" id="map-house-geo" data-source="house_map"></div>
     <div class="board" id="map-house" data-source="house_map"></div>
     <div class="mlegend" id="ml-house" data-source="house_map"></div>
@@ -770,7 +770,7 @@ window.WD_US={"type":"Topology","bbox":[-57.66491068874468,12.97635452036684,957
       const grid = document.createElement('div'); grid.className = 'bgrid';
       ds.forEach((d) => {
         const m = d.x.match(/^(\S+)\s+(.*?)(?:\s*\[([DR])-held\])?$/) || [null, d.x, '', null];
-        const tile = document.createElement('div'); tile.className = 'tile-d'; tile.style.background = 'var(' + c.v + ')'; tile.dataset.state = d.state; tile.dataset.cv = c.v;
+        const tile = document.createElement('div'); tile.className = 'tile-d'; tile.style.background = 'var(' + c.v + ')'; tile.dataset.state = d.state; tile.dataset.cv = c.v; tile.dataset.code = m[1];
         tile.textContent = m[1];
         if (m[3]) { const k = document.createElement('i'); k.className = 'held'; k.style.background = m[3] === 'D' ? 'var(--wd-d2)' : 'var(--wd-r2)'; tile.appendChild(k); }
         tile.addEventListener('mousemove', (ev) => showTip(t, el, ev, [m[1] + ' · ' + d.state, (c.k === 'favor_d' ? 'Lean Democratic' : c.k === 'favor_r' ? 'Lean Republican' : 'Toss Up') + ' (Cook, ' + d.as_of + ')', 'Current member: ' + (m[2] || '—'), m[3] ? 'Seat now held by ' + (m[3] === 'D' ? 'Democrats' : 'Republicans') : '']));
@@ -788,31 +788,50 @@ window.WD_US={"type":"Topology","bbox":[-57.66491068874468,12.97635452036684,957
       const gt = tip(geo);
       const byState = new Map(rows.map((r) => [r.state, r]));
       const tilesOf = (st) => el.querySelectorAll('.tile-d[data-state="' + CSS.escape(st) + '"]');
-      const lightState = (st, colorVar) => paths.filter((f) => f.properties.name === st).attr('fill', 'var(' + colorVar + ')').attr('stroke', 'var(--color-fg)').attr('stroke-width', 1.5).raise();
+      const lightState = (st, colorVar) => { paths.filter((f) => f.properties.name === st).attr('fill', 'color-mix(in srgb, var(' + colorVar + ') 45%, var(--wd-map-on))').attr('stroke', 'var(--color-fg)').attr('stroke-width', 1.5).raise(); svg.selectAll('g.sqg').raise(); };
       const resetStates = () => paths.attr('fill', (f) => byState.has(f.properties.name) ? 'var(--wd-map-on)' : 'var(--wd-map-off)').attr('stroke', 'var(--wd-map-line)').attr('stroke-width', 1);
       const total = (r) => (r.favor_d || 0) + (r.tossup || 0) + (r.favor_r || 0);
       paths.filter((f) => byState.has(f.properties.name)).style('cursor', 'default')
         .on('mousemove', (ev, f) => {
           const r = byState.get(f.properties.name);
-          d3.select(ev.currentTarget).attr('stroke', 'var(--color-fg)').attr('stroke-width', 1.5).raise();
+          d3.select(ev.currentTarget).attr('stroke', 'var(--color-fg)').attr('stroke-width', 1.5).raise(); svg.selectAll('g.sqg').raise();
           el.classList.add('focus'); el.querySelectorAll('.tile-d.on').forEach((x) => x.classList.remove('on')); tilesOf(r.state).forEach((x) => x.classList.add('on'));
           showTip(gt, geo, ev, [r.state + ' · ' + total(r) + ' competitive district' + (total(r) > 1 ? 's' : '') + ' (Cook)', r.districts_d ? 'Lean D: ' + r.districts_d : '', r.districts_t ? 'Toss Up: ' + r.districts_t : '', r.districts_r ? 'Lean R: ' + r.districts_r : '']);
         })
         .on('mouseleave', () => { resetStates(); el.classList.remove('focus'); el.querySelectorAll('.tile-d.on').forEach((x) => x.classList.remove('on')); gt.style.display = 'none'; });
+      const narrow = W < 520, sq = narrow ? Math.max(5, W / 60) : Math.max(9, Math.min(16, W / 58)), gap = narrow ? 1 : 2;
+      const parseD = (x) => { const m = x.match(/^(\S+)\s+(.*?)(?:\s*\[([DR])-held\])?$/) || [null, x, '', null]; return { code: m[1], member: m[2], held: m[3] }; };
+      const tileOf = (code) => el.querySelector('.tile-d[data-code="' + CSS.escape(code) + '"]');
       rows.forEach((r) => {
         const p = pos.get(r.state); if (!p) return;
-        const lab = (AP[r.state] || r.state) + ' ' + total(r);
-        if (p.callout) {
-          svg.append('line').attr('x1', p.cx).attr('y1', p.cy).attr('x2', p.x - 9).attr('y2', p.y).attr('stroke', 'var(--color-fg-muted)').attr('stroke-width', 1).style('pointer-events', 'none');
-          svg.append('circle').attr('class', 'co').attr('data-state', r.state).attr('cx', p.x - 4).attr('cy', p.y).attr('r', 5).attr('fill', 'var(--wd-map-on)').attr('stroke', 'var(--color-fg-muted)').style('pointer-events', 'none');
-          svg.append('text').attr('class', 'lbl').attr('x', p.x + 4).attr('y', p.y).attr('dy', '0.35em').style('font-size', fs + 'px').style('pointer-events', 'none').text(lab);
-        } else {
-          svg.append('text').attr('class', 'lbl').attr('x', p.x).attr('y', p.y).attr('dy', '0.35em').attr('text-anchor', 'middle').style('font-size', fs + 'px').style('pointer-events', 'none').text(lab);
-        }
+        const cells = HCAT.flatMap((c) => String(r[FIELD[c.k]] || '').split('; ').filter(Boolean).map((x) => ({ c, ...parseD(x) })));
+        const per = cells.length === 4 ? 2 : Math.min(3, cells.length);
+        const nrow = Math.ceil(cells.length / per), bw = per * sq + (per - 1) * gap, bh = nrow * sq + (nrow - 1) * gap;
+        const ox = p.callout ? -bw : -bw / 2;
+        if (p.callout) svg.append('line').attr('x1', p.cx).attr('y1', p.cy).attr('x2', p.x - bw - 4).attr('y2', p.y).attr('stroke', 'var(--color-fg-muted)').attr('stroke-width', 1).style('pointer-events', 'none');
+        const g = svg.append('g').attr('class', 'sqg').attr('transform', `translate(${p.x},${p.y - bh / 2 + fs / 2})`);
+        if (!narrow) g.append('text').attr('class', 'lbl').attr('x', 0).attr('y', -4).attr('text-anchor', p.callout ? 'end' : 'middle').style('font-size', fs + 'px').style('pointer-events', 'none').text(AP[r.state] || r.state);
+        g.selectAll('rect.sq').data(cells).join('rect').attr('class', 'sq')
+          .attr('x', (d, i) => ox + (i % per) * (sq + gap)).attr('y', (d, i) => Math.floor(i / per) * (sq + gap))
+          .attr('width', sq).attr('height', sq).attr('rx', Math.max(2, sq * 0.22))
+          .attr('fill', (d) => 'var(' + d.c.v + ')').attr('stroke', 'var(--color-panel)').attr('stroke-width', 1)
+          .attr('data-code', (d) => d.code).style('cursor', 'default')
+          .on('mousemove', (ev, d) => {
+            resetStates(); lightState(r.state, d.c.v);
+            d3.select(ev.currentTarget).attr('stroke', 'var(--color-fg)').attr('stroke-width', 2);
+            el.classList.add('focus'); el.querySelectorAll('.tile-d.on').forEach((x) => x.classList.remove('on')); const tl = tileOf(d.code); if (tl) tl.classList.add('on');
+            showTip(gt, geo, ev, [d.code + ' · ' + r.state, (d.c.k === 'favor_d' ? 'Lean Democratic' : d.c.k === 'favor_r' ? 'Lean Republican' : 'Toss Up') + ' (Cook, ' + r.as_of + ')', 'Current member: ' + (d.member || '—'), d.held ? 'Seat now held by ' + (d.held === 'D' ? 'Democrats' : 'Republicans') : '']);
+          })
+          .on('mouseleave', (ev) => { d3.select(ev.currentTarget).attr('stroke', 'var(--color-panel)').attr('stroke-width', 1); resetStates(); el.classList.remove('focus'); el.querySelectorAll('.tile-d.on').forEach((x) => x.classList.remove('on')); gt.style.display = 'none'; });
+        // toss-up seats show who holds them now: a small dot in the square's corner
+        if (!narrow) g.selectAll('circle.hd').data(cells.map((d, i) => ({ ...d, i })).filter((d) => d.held)).join('circle').attr('class', 'hd')
+          .attr('cx', (d) => ox + (d.i % per) * (sq + gap) + sq - 3).attr('cy', (d) => Math.floor(d.i / per) * (sq + gap) + 3).attr('r', Math.max(1.6, sq * 0.14))
+          .attr('fill', (d) => d.held === 'D' ? 'var(--wd-d2)' : 'var(--wd-r2)').attr('stroke', '#fff').attr('stroke-width', 0.8).style('pointer-events', 'none');
       });
+      svg.selectAll('g.sqg').raise();
       el.querySelectorAll('.tile-d').forEach((tile) => {
-        tile.addEventListener('mouseenter', () => { resetStates(); lightState(tile.dataset.state, tile.dataset.cv); svg.selectAll('circle.co').filter(function () { return this.dataset.state === tile.dataset.state; }).attr('fill', 'var(' + tile.dataset.cv + ')'); tilesOf(tile.dataset.state).forEach((x) => x.classList.add('sib')); });
-        tile.addEventListener('mouseleave', () => { resetStates(); svg.selectAll('circle.co').attr('fill', 'var(--wd-map-on)'); el.querySelectorAll('.tile-d.sib').forEach((x) => x.classList.remove('sib')); });
+        tile.addEventListener('mouseenter', () => { resetStates(); lightState(tile.dataset.state, tile.dataset.cv); svg.selectAll('rect.sq').filter(function () { return this.dataset.code === tile.dataset.code; }).attr('stroke', 'var(--color-fg)').attr('stroke-width', 2); svg.selectAll('g.sqg').raise(); svg.selectAll('circle.co').filter(function () { return this.dataset.state === tile.dataset.state; }).attr('fill', 'var(' + tile.dataset.cv + ')'); tilesOf(tile.dataset.state).forEach((x) => x.classList.add('sib')); });
+        tile.addEventListener('mouseleave', () => { resetStates(); svg.selectAll('rect.sq').attr('stroke', 'var(--color-panel)').attr('stroke-width', 1); svg.selectAll('circle.co').attr('fill', 'var(--wd-map-on)'); el.querySelectorAll('.tile-d.sib').forEach((x) => x.classList.remove('sib')); });
       });
     }
     legendCounts(lg, counts, HCAT);
