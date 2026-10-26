@@ -139,6 +139,9 @@ html,body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:
 .wd .tile-d:hover { transform: translateY(-2px); box-shadow: 0 3px 8px rgb(0 0 0 / .18); }
 .wd .tile-d .held { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 1.5px #fff; }
 .wd .mlegend i { border-radius: 3px; }
+.wd .hgeo { max-width: 760px; margin: 0 auto var(--cds-gap-md); }
+.wd .board.focus .tile-d:not(.on) { opacity: .25; }
+.wd .tile-d.on, .wd .tile-d.sib { box-shadow: 0 0 0 2px var(--color-panel), 0 0 0 4px var(--color-fg); }
 .wd .fail::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
 </style>
 
@@ -376,7 +379,8 @@ html,body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:
   </div>
   <div class="card" style="margin-bottom: var(--cds-gap-md)">
     <div class="maphead"><h3>The House battleground</h3></div>
-    <div class="explain"><span class="ex-h">How to read this</span> Each tile is one House district that Cook Political Report rates as competitive — the seats most likely to decide which party controls the House. Tiles on the left lean Democratic, the middle ones are toss-ups, those on the right lean Republican. A small corner mark shows which party holds a toss-up seat now. Hover a tile for the district and its current member.</div>
+    <div class="explain"><span class="ex-h">How to read this</span> Each tile is one House district that Cook Political Report rates as competitive — the seats most likely to decide which party controls the House. Tiles on the left lean Democratic, the middle ones are toss-ups, those on the right lean Republican. A small corner mark shows which party holds a toss-up seat now. Hover a tile to see its state light up on the map, or hover a state to pick out its districts.</div>
+    <div class="map hgeo" id="map-house-geo" data-source="house_map"></div>
     <div class="board" id="map-house" data-source="house_map"></div>
     <div class="mlegend" id="ml-house" data-source="house_map"></div>
     <p class="muted" id="map-house-note"></p>
@@ -744,9 +748,10 @@ window.WD_US={"type":"Topology","bbox":[-57.66491068874468,12.97635452036684,957
   function houseMap() {
     const el = document.getElementById('map-house'), lg = document.getElementById('ml-house'), note = document.getElementById('map-house-note');
     const st = dash.data('house_map');
-    if (failOr(el, st)) { lg.replaceChildren(); note.textContent = ''; return; }
+    const geo0 = document.getElementById('map-house-geo');
+    if (failOr(el, st)) { geo0.replaceChildren(); lg.replaceChildren(); note.textContent = ''; return; }
     const tagged = st.data.filter((r) => upTo(r));
-    if (!tagged.length) { el.replaceChildren(); lg.replaceChildren(); note.textContent = 'District-level House ratings not collected before run3 — see the toss-up counts below.'; return; }
+    if (!tagged.length) { el.replaceChildren(); geo0.replaceChildren(); lg.replaceChildren(); note.textContent = 'District-level House ratings not collected before run3 — see the toss-up counts below.'; return; }
     const lastRun = tagged.reduce((a, r) => Math.max(a, runIdx(r.run_id)), -1);
     const rows = tagged.filter((r) => runIdx(r.run_id) === lastRun);
     const FIELD = { favor_d: 'districts_d', tossup: 'districts_t', favor_r: 'districts_r' };
@@ -765,7 +770,7 @@ window.WD_US={"type":"Topology","bbox":[-57.66491068874468,12.97635452036684,957
       const grid = document.createElement('div'); grid.className = 'bgrid';
       ds.forEach((d) => {
         const m = d.x.match(/^(\S+)\s+(.*?)(?:\s*\[([DR])-held\])?$/) || [null, d.x, '', null];
-        const tile = document.createElement('div'); tile.className = 'tile-d'; tile.style.background = 'var(' + c.v + ')';
+        const tile = document.createElement('div'); tile.className = 'tile-d'; tile.style.background = 'var(' + c.v + ')'; tile.dataset.state = d.state; tile.dataset.cv = c.v;
         tile.textContent = m[1];
         if (m[3]) { const k = document.createElement('i'); k.className = 'held'; k.style.background = m[3] === 'D' ? 'var(--wd-d2)' : 'var(--wd-r2)'; tile.appendChild(k); }
         tile.addEventListener('mousemove', (ev) => showTip(t, el, ev, [m[1] + ' · ' + d.state, (c.k === 'favor_d' ? 'Lean Democratic' : c.k === 'favor_r' ? 'Lean Republican' : 'Toss Up') + ' (Cook, ' + d.as_of + ')', 'Current member: ' + (m[2] || '—'), m[3] ? 'Seat now held by ' + (m[3] === 'D' ? 'Democrats' : 'Republicans') : '']));
@@ -774,11 +779,47 @@ window.WD_US={"type":"Topology","bbox":[-57.66491068874468,12.97635452036684,957
       });
       col.append(h, grid); el.appendChild(col);
     });
+    // Linked map: states with competitive districts; hover a tile -> its state takes the tile's colour; hover a state -> its tiles stand out.
+    const geo = document.getElementById('map-house-geo');
+    const bm = baseMap(geo, new Set(rows.map((r) => r.state)));
+    if (bm) {
+      const { svg, W, pos, paths } = bm;
+      const fs = Math.max(10, Math.min(13, W / 56));
+      const gt = tip(geo);
+      const byState = new Map(rows.map((r) => [r.state, r]));
+      const tilesOf = (st) => el.querySelectorAll('.tile-d[data-state="' + CSS.escape(st) + '"]');
+      const lightState = (st, colorVar) => paths.filter((f) => f.properties.name === st).attr('fill', 'var(' + colorVar + ')').attr('stroke', 'var(--color-fg)').attr('stroke-width', 1.5).raise();
+      const resetStates = () => paths.attr('fill', (f) => byState.has(f.properties.name) ? 'var(--wd-map-on)' : 'var(--wd-map-off)').attr('stroke', 'var(--wd-map-line)').attr('stroke-width', 1);
+      const total = (r) => (r.favor_d || 0) + (r.tossup || 0) + (r.favor_r || 0);
+      paths.filter((f) => byState.has(f.properties.name)).style('cursor', 'default')
+        .on('mousemove', (ev, f) => {
+          const r = byState.get(f.properties.name);
+          d3.select(ev.currentTarget).attr('stroke', 'var(--color-fg)').attr('stroke-width', 1.5).raise();
+          el.classList.add('focus'); el.querySelectorAll('.tile-d.on').forEach((x) => x.classList.remove('on')); tilesOf(r.state).forEach((x) => x.classList.add('on'));
+          showTip(gt, geo, ev, [r.state + ' · ' + total(r) + ' competitive district' + (total(r) > 1 ? 's' : '') + ' (Cook)', r.districts_d ? 'Lean D: ' + r.districts_d : '', r.districts_t ? 'Toss Up: ' + r.districts_t : '', r.districts_r ? 'Lean R: ' + r.districts_r : '']);
+        })
+        .on('mouseleave', () => { resetStates(); el.classList.remove('focus'); el.querySelectorAll('.tile-d.on').forEach((x) => x.classList.remove('on')); gt.style.display = 'none'; });
+      rows.forEach((r) => {
+        const p = pos.get(r.state); if (!p) return;
+        const lab = (AP[r.state] || r.state) + ' ' + total(r);
+        if (p.callout) {
+          svg.append('line').attr('x1', p.cx).attr('y1', p.cy).attr('x2', p.x - 9).attr('y2', p.y).attr('stroke', 'var(--color-fg-muted)').attr('stroke-width', 1).style('pointer-events', 'none');
+          svg.append('circle').attr('class', 'co').attr('data-state', r.state).attr('cx', p.x - 4).attr('cy', p.y).attr('r', 5).attr('fill', 'var(--wd-map-on)').attr('stroke', 'var(--color-fg-muted)').style('pointer-events', 'none');
+          svg.append('text').attr('class', 'lbl').attr('x', p.x + 4).attr('y', p.y).attr('dy', '0.35em').style('font-size', fs + 'px').style('pointer-events', 'none').text(lab);
+        } else {
+          svg.append('text').attr('class', 'lbl').attr('x', p.x).attr('y', p.y).attr('dy', '0.35em').attr('text-anchor', 'middle').style('font-size', fs + 'px').style('pointer-events', 'none').text(lab);
+        }
+      });
+      el.querySelectorAll('.tile-d').forEach((tile) => {
+        tile.addEventListener('mouseenter', () => { resetStates(); lightState(tile.dataset.state, tile.dataset.cv); svg.selectAll('circle.co').filter(function () { return this.dataset.state === tile.dataset.state; }).attr('fill', 'var(' + tile.dataset.cv + ')'); tilesOf(tile.dataset.state).forEach((x) => x.classList.add('sib')); });
+        tile.addEventListener('mouseleave', () => { resetStates(); svg.selectAll('circle.co').attr('fill', 'var(--wd-map-on)'); el.querySelectorAll('.tile-d.sib').forEach((x) => x.classList.remove('sib')); });
+      });
+    }
     legendCounts(lg, counts, HCAT);
     const tk = document.createElement('span'); tk.style.color = 'var(--color-fg-muted)'; tk.textContent = 'Corner mark on a toss-up = party holding the seat now';
     lg.appendChild(tk);
     const r0 = rows[0];
-    note.replaceChildren(document.createTextNode('Lean and Toss Up seats only — Likely and Solid seats are not shown. Source: '));
+    note.replaceChildren(document.createTextNode('Lean and Toss Up seats only — Likely and Solid seats are not shown. The map lights up whole states, not district outlines, because several states redrew their districts for 2026. Source: '));
     if (r0.url && /^https:\/\//.test(r0.url)) { const a = document.createElement('a'); a.href = r0.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Cook Political Report House ratings, ' + fDate(pDate(r0.as_of)); note.append(a, '. Cross-checked against the NYT graphic of the same ratings. Not comparable with Sabato counts.'); }
     else note.append(r0.source || '');
   }
