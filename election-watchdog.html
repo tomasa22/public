@@ -127,9 +127,8 @@ html,body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:
 .wd .tip .row { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
 .wd .tip .row i { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .wd .subh { font-size: .95rem; font-weight: var(--cds-font-weight-medium); margin: var(--cds-gap-lg) 0 var(--cds-gap-xs); padding-top: var(--cds-gap-sm); border-top: 1px solid var(--color-border-line); }
-.wd .explain { display: flex; gap: 10px; align-items: baseline; background: color-mix(in srgb, var(--wd-t) 10%, var(--color-panel)); border-left: 3px solid var(--wd-t); border-radius: 0 var(--cds-radius) var(--cds-radius) 0; padding: 10px 14px; margin: 0 0 var(--cds-gap-md); font-size: .95rem; line-height: 1.5; max-width: 80ch; }
-.wd .explain .ex-h { flex: none; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; color: var(--color-fg-muted); }
-@media (max-width: 520px) { .wd .explain { display: block; } .wd .explain .ex-h { display: block; margin-bottom: 2px; } }
+.wd .explain { display: block; background: color-mix(in srgb, var(--wd-t) 10%, var(--color-panel)); border-left: 3px solid var(--wd-t); border-radius: 0 var(--cds-radius) var(--cds-radius) 0; padding: 10px 14px; margin: 0 0 var(--cds-gap-md); font-size: .95rem; line-height: 1.5; max-width: 80ch; }
+.wd .explain .ex-h { display: block; margin-bottom: 2px; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; color: var(--color-fg-muted); }
 .wd .map .lbl.onfill { font-weight: 600; }
 .wd .board { position: relative; display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
 .wd .bhead { font-size: .95rem; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--color-border-line); }
@@ -379,7 +378,7 @@ html,body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:
   </div>
   <div class="card" style="margin-bottom: var(--cds-gap-md)">
     <div class="maphead"><h3>The House battleground</h3></div>
-    <div class="explain"><span class="ex-h">How to read this</span> Each tile is one House district that Cook Political Report rates as competitive — the seats most likely to decide which party controls the House. Tiles on the left lean Democratic, the middle ones are toss-ups, those on the right lean Republican. A small corner mark shows which party holds a toss-up seat now. Each small square on the map is one of these districts, in the same colour as its tile. Hover a tile or a square and both light up together with the state.</div>
+    <div class="explain"><span class="ex-h">How to read this</span> Each tile is one House district that Cook Political Report rates as competitive — the seats most likely to decide which party controls the House. <b>Blue</b> tiles lean Democratic, <b>yellow</b> tiles are toss-ups and <b>red</b> tiles lean Republican. On a toss-up, a small dot in the corner shows which party holds the seat now (blue dot = Democrats, red dot = Republicans). Each small square on the map is one of these districts, in the same colour. Hover or tap a tile or a square to see which state it is in.</div>
     <div class="map hgeo" id="map-house-geo" data-source="house_map"></div>
     <div class="board" id="map-house" data-source="house_map"></div>
     <div class="mlegend" id="ml-house" data-source="house_map"></div>
@@ -799,7 +798,7 @@ window.WD_US={"type":"Topology","bbox":[-57.66491068874468,12.97635452036684,957
           showTip(gt, geo, ev, [r.state + ' · ' + total(r) + ' competitive district' + (total(r) > 1 ? 's' : '') + ' (Cook)', r.districts_d ? 'Lean D: ' + r.districts_d : '', r.districts_t ? 'Toss Up: ' + r.districts_t : '', r.districts_r ? 'Lean R: ' + r.districts_r : '']);
         })
         .on('mouseleave', () => { resetStates(); el.classList.remove('focus'); el.querySelectorAll('.tile-d.on').forEach((x) => x.classList.remove('on')); gt.style.display = 'none'; });
-      const narrow = W < 520, sq = narrow ? Math.max(5, W / 60) : Math.max(9, Math.min(16, W / 58)), gap = narrow ? 1 : 2;
+      const narrow = W < 520, sq = narrow ? Math.max(8, W / 42) : Math.max(9, Math.min(16, W / 58)), gap = narrow ? 1.5 : 2;
       const parseD = (x) => { const m = x.match(/^(\S+)\s+(.*?)(?:\s*\[([DR])-held\])?$/) || [null, x, '', null]; return { code: m[1], member: m[2], held: m[3] }; };
       const tileOf = (code) => el.querySelector('.tile-d[data-code="' + CSS.escape(code) + '"]');
       rows.forEach((r) => {
@@ -824,7 +823,7 @@ window.WD_US={"type":"Topology","bbox":[-57.66491068874468,12.97635452036684,957
           })
           .on('mouseleave', (ev) => { d3.select(ev.currentTarget).attr('stroke', 'var(--color-panel)').attr('stroke-width', 1); resetStates(); el.classList.remove('focus'); el.querySelectorAll('.tile-d.on').forEach((x) => x.classList.remove('on')); gt.style.display = 'none'; });
         // toss-up seats show who holds them now: a small dot in the square's corner
-        if (!narrow) g.selectAll('circle.hd').data(cells.map((d, i) => ({ ...d, i })).filter((d) => d.held)).join('circle').attr('class', 'hd')
+        g.selectAll('circle.hd').data(cells.map((d, i) => ({ ...d, i })).filter((d) => d.held)).join('circle').attr('class', 'hd')
           .attr('cx', (d) => ox + (d.i % per) * (sq + gap) + sq - 3).attr('cy', (d) => Math.floor(d.i / per) * (sq + gap) + 3).attr('r', Math.max(1.6, sq * 0.14))
           .attr('fill', (d) => d.held === 'D' ? 'var(--wd-d2)' : 'var(--wd-r2)').attr('stroke', '#fff').attr('stroke-width', 0.8).style('pointer-events', 'none');
       });
