@@ -86,7 +86,7 @@ html,body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:
 .wd [data-run][hidden] { display: none; }
 .wd [data-dash-source-state=empty] { color: transparent; }
 .wd [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
-.wd .trk { display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+.wd .trk { position: relative; display: grid; gap: var(--cds-gap-md); grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
 .wd .trk .panel h4 { font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); margin: 0 0 2px; }
 .wd .trk .panel .latest { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: 0 0 var(--cds-gap-xs); font-variant-numeric: tabular-nums; }
 .wd .trk .chart { min-height: 200px; }
@@ -96,9 +96,9 @@ html,body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .wd { --wd-map-off: #3b3b39; --wd-map-on: #55554f; --wd-map-line: #262624; } }
 :root[data-theme="dark"] .wd { --wd-map-off: #3b3b39; --wd-map-on: #55554f; --wd-map-line: #262624; }
 .wd .kicker { display: flex; align-items: center; gap: 10px; margin: 0 0 var(--cds-gap-xs); font-size: var(--cds-font-size-caption); letter-spacing: .08em; text-transform: uppercase; color: var(--color-fg-muted); font-weight: var(--cds-font-weight-medium); }
-.wd .yr { display: inline-flex; gap: 2px; }
-.wd .yr b { display: inline-grid; place-items: center; width: 1.35em; height: 1.5em; color: #fff; font-size: 1.05rem; font-weight: 700; letter-spacing: 0; }
-.wd .yr b:nth-child(odd) { background: var(--wd-r2); } .wd .yr b:nth-child(even) { background: var(--wd-d2); }
+.wd .tri { display: inline-flex; gap: 2px; }
+.wd .tri i { display: block; width: 14px; height: 4px; border-radius: 2px; }
+.wd .tri i:nth-child(1) { background: var(--wd-d2); } .wd .tri i:nth-child(2) { background: var(--wd-t); } .wd .tri i:nth-child(3) { background: var(--wd-r2); }
 .wd h1 { font-size: clamp(1.9rem, 4.2vw, 2.9rem); line-height: 1.08; letter-spacing: -.01em; }
 .wd .lede { font-size: 1.05rem; line-height: 1.5; color: var(--color-fg); }
 .wd h2 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: clamp(1.4rem, 2.6vw, 1.8rem); line-height: 1.15; border-top: 1px solid var(--color-fg); padding-top: var(--cds-gap-sm); margin-top: calc(var(--cds-gap-xl) * 1.4); }
@@ -130,7 +130,7 @@ html,body{margin:0;background:var(--color-bg);color:var(--color-fg);font-family:
 
 <div class="wd">
   <header id="top">
-    <p class="kicker"><span class="yr" aria-hidden="true"><b>2</b><b>0</b><b>2</b><b>6</b></span>Midterms · Trend watch</p>
+    <p class="kicker"><span class="tri" aria-hidden="true"><i></i><i></i><i></i></span>Midterms · Nov 3, 2026 · Trend watch</p>
     <h1>US Election Trend Watchdog</h1>
     <p class="lede">Opinion trends ahead of the November 3, 2026 midterms — direction and speed of change, not predictions.</p>
     <div class="runbar" id="run-picker">
