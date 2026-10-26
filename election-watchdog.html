@@ -789,7 +789,7 @@ window.WD_US={"type":"Topology","bbox":[-57.66491068874468,12.97635452036684,957
           hov.style('display', null); vline.attr('x1', x(r.dt)).attr('x2', x(r.dt));
           keys.forEach((k, i) => dots[i].attr('display', r[k.k] == null ? 'none' : null).attr('cx', x(r.dt)).attr('cy', y(r[k.k] ?? 0)));
           const head = document.createElement('div'); head.className = 'd'; head.textContent = p + ' · ' + r.start + ' to ' + r.end;
-          const lines = keys.filter((k) => r[k.k] != null).map((k) => { const d = document.createElement('div'); d.className = 'row'; const i = document.createElement('i'); i.style.background = k.c; const mo = k.band ? moe(r, k.k) : null; d.append(i, document.createTextNode(k.label + ': ' + r[k.k] + '%' + (mo ? ' (±' + mo.toFixed(1) + ')' : ''))); return d; });
+          const lines = keys.filter((k) => r[k.k] != null).sort((p1, p2) => r[p2.k] - r[p1.k]).map((k) => { const d = document.createElement('div'); d.className = 'row'; const i = document.createElement('i'); i.style.background = k.c; const mo = k.band ? moe(r, k.k) : null; d.append(i, document.createTextNode(k.label + ': ' + r[k.k] + '%' + (mo ? ' (±' + mo.toFixed(1) + ')' : ''))); return d; });
           const foot = document.createElement('div'); foot.className = 'd'; foot.textContent = (r.n ? 'n=' + r.n.toLocaleString() + ' ' + r.pop : 'Sample size not shown — no band') + (r.note ? ' · ' + r.note : '');
           t.replaceChildren(head, ...lines, foot); t.style.display = 'block';
           const br = box.getBoundingClientRect(); const cx = (ev.touches ? ev.touches[0].clientX : ev.clientX), cy = (ev.touches ? ev.touches[0].clientY : ev.clientY);
